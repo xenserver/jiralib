@@ -14,7 +14,8 @@ import SOAPpy
 from SOAPpy import Types
 import re, os.path, base64, urllib, urllib2
 import xml.dom.minidom
-import array 
+import array
+import time
 
 _jira = None
 
@@ -23,17 +24,17 @@ class Jira:
     StatusResolved = 5
     STATUS = {}
     RESOLUTION = {}
-    TYPES = {} 
+    TYPES = {}
     PRIORITIES = {}
 
     def __init__(self,url,username,password):
-        global _jira        
+        global _jira
         _jira = self
-    
+
         self.url = url
         self.username = username
         self.password = password
-        
+
         # Open JIRA connection and login
         self.jira = SOAPpy.WSDL.Proxy(
                         "%s/rpc/soap/jirasoapservice-v2?wsdl" % (url))
@@ -61,7 +62,7 @@ class Jira:
 
     def getUserFullName(self, user):
         return self.jira.getUser(self.auth, user)['fullname']
-        
+
     def createIssue(self,project,summary,type,priority,description=None,
                     affectsVersions=None,assignee="-1",components=None,
                     customFields=None,environment=None):
@@ -97,14 +98,14 @@ class Jira:
             self.jira.deleteIssue(self.auth,key)
         except:
             raise Exception("Issue %s not found" % (key))
-        
+
     def getIssue(self,key):
         try:
             ri = self.jira.getIssue(self.auth,key)
             return JiraIssue(ri)
         except:
             raise Exception("Issue %s not found" % (key))
-        
+
     def getIssuesFromFilter(self,filterId):
         try:
             ris = self.jira.getIssuesFromFilter(self.auth,filterId);
@@ -140,9 +141,9 @@ class Jira:
         """Given a filter name, return a list of JiraIssue objects that match"""
         filter = self.getFilter(filterName)
         issues = filter.getIssues()
-        
+
         return issues
-        
+
     def getGroup(self, groupName):
         """Check the group exists, if so, return it."""
         try:
@@ -155,7 +156,7 @@ class Jira:
         """Return the users of the group with passed name."""
         group = self.getGroup(groupName)
         return group.getUsers()
-        
+
     def getSavedFilters(self):
         """Return list of filters this login can see"""
         remoteFilters = self.jira.getSavedFilters(self.auth)
@@ -175,12 +176,12 @@ class Jira:
         if retfilter == None:
             raise Exception("Filter not found")
         return retfilter
-        
+
     def getFilterUrl(self, filterName):
         """Return a Url for the named filter"""
         filter = self.getFilter(filterName)
         return filter.getUrl()
-        
+
 class JiraObject:
 
     def __init__(self):
@@ -190,14 +191,14 @@ class JiraObject:
         self.jira = _jira.jira
         self.auth = _jira.auth
 
-class JiraProject(JiraObject):      
+class JiraProject(JiraObject):
 
     def __init__(self,RemoteProject,projectKey):
         JiraObject.__init__(self)
-        
+
         self.RemoteProject = RemoteProject
         self.projectKey = projectKey
-        
+
         # Parse the fields in the RemoteProject
         for k,v in RemoteProject.__dict__.items():
             self.__dict__[k] = v
@@ -207,7 +208,7 @@ class JiraProject(JiraObject):
 
     def addVersion(self,version):
         self.jira.addVersion(self.auth, self.key, {'name': version})
-       
+
     def getComponents(self):
         comps = self.jira.getComponents(self.auth, self.projectKey)
         return [ JiraComponent(c) for c in comps ]
@@ -219,7 +220,7 @@ class JiraComponent(JiraObject):
 
         for k,v in RemoteComponent.__dict__.items():
             self.__dict__[k] = v
-        
+
     def getName(self):
         return self.name
 
@@ -227,20 +228,20 @@ class JiraIssue(JiraObject):
 
     def __init__(self,RemoteIssue):
         JiraObject.__init__(self)
-        
+
         self.RemoteIssue = RemoteIssue
-        
+
         # Parse the fields in the RemoteIssue
         for k,v in RemoteIssue.__dict__.items():
             self.__dict__[k] = v
-    
+
         # Get priorities
         prios = self.jira.getPriorities(self.auth)
         # Parse them
         self.priorities = {}
         for prio in prios:
             self.priorities[prio['name']] = prio['id']
-            
+
         # Get custom fields
         fs = self.jira.getFieldsForEdit(self.auth,self.key)
         self.customFields = {}
@@ -264,16 +265,16 @@ class JiraIssue(JiraObject):
             return None
         else:
             return self.Jira.RESOLUTION[self.resolution]
-    
+
     def getSummary(self):
         return self.summary
-    
+
     def getDescription(self):
         return self.description
 
     def getFixVersionNames(self):
         return [ i.name for i in self.fixVersions ]
-    
+
     def getEnvironment(self):
         return self.environment
 
@@ -306,7 +307,7 @@ class JiraIssue(JiraObject):
             estimate = int(data)
         except:
             raise RuntimeError, "Error retrieving original estimate: got %s" % data
-        
+
         return estimate
 
     def getComments(self):
@@ -315,9 +316,9 @@ class JiraIssue(JiraObject):
         return_cs = []
         for c in cs:
             return_cs.append(c._asdict())
-        
+
         return return_cs
-    
+
     def getCodeComplete(self):
         return self.getCustomTextField("Code Complete Date")
 
@@ -356,7 +357,7 @@ class JiraIssue(JiraObject):
             return f[0]
 
     def getCustomField(self,name):
-        """Returns the specified custom field"""      
+        """Returns the specified custom field"""
 
         if not self.customFields.has_key(name):
             return None
@@ -368,41 +369,40 @@ class JiraIssue(JiraObject):
 
     # Mutator methods
 
-
     def update(self,valuelist):
         """Update fields of an issue. Used internally and externally."""
-        
+
         self.jira.updateIssue(self.auth, self.key, valuelist)
 
     def setSummary(self,summary):
         self.summary = summary
         self.update([{'id': 'summary','values': summary}])
-    
+
     def setDescription(self,description):
         self.description = description
-        self.update([{'id': 'description','values': description}])        
-        
+        self.update([{'id': 'description','values': description}])
+
     def setEnvironment(self,environment):
         self.environment = environment
-        self.update([{'id': 'environment','values': environment}])     
-    
+        self.update([{'id': 'environment','values': environment}])
+
     def setPriority(self,priority):
         self.priority = priority
-        self.update([{'id': 'priority','values': priority}])    
+        self.update([{'id': 'priority','values': priority}])
 
     def setReporter(self,reporter):
         self.reporter = reporter
-        self.update([{'id': 'reporter','values': reporter}])    
+        self.update([{'id': 'reporter','values': reporter}])
 
     def setFeatureCommitted(self, committed):
         self.setCustomField("Feature Committed", committed)
-    
+
     def addComment(self,comment):
         self.jira.addComment(self.auth, self.key, {'body': comment})
-    
+
     def addSecureComment(self,comment,commentLevel):
         self.jira.addComment(self.auth, self.key, {'body': comment, 'roleLevel': commentLevel})
-    
+
     def setCustomField(self,name,value,update=True):
         """Sets the specified custom field"""
 
@@ -429,7 +429,7 @@ class JiraIssue(JiraObject):
         # Find the version id. Doesn't Jira provide this?
         versions = self.jira.getVersions(self.auth, self.project)
         id = [v.id for v in versions if v.name == versionName][0]
-        
+
         fixedin = map(lambda v: v['id'], self.fixVersions) + [id]
         self.update([{'id': 'fixVersions', 'values': fixedin }])
 
@@ -439,30 +439,30 @@ class JiraIssue(JiraObject):
         # check version of SOAPpy
         if SOAPpy.__version__ < '0.12.0':
             raise Exception("To use attachFile you must have SOAPpy v0.12.0 or later due to an API change.")
-        
+
         # Get just the name of the file
         if name:
             filename = name
         else:
             filename = os.path.basename(path)
 
-        # Read in the file    
+        # Read in the file
         f = file(path,"rb")
         data = f.read()
         f.close()
         data = base64.encodestring(data)
-        
+
         # Make the call...
-        self.jira.addAttachmentsToIssue(self.auth, self.key, [filename], 
+        self.jira.addAttachmentsToIssue(self.auth, self.key, [filename],
                                         [[data]])
-        
+
     def linkIssue(self,linkTo,linkType):
         """Link this issue to another"""
 
         postURL = "%s/secure/LinkExistingIssue.jspa" % (self.Jira.url)
-        postdic = urllib.urlencode({'os_username': self.Jira.username, 
-                                    'os_password': self.Jira.password, 
-                                    'id': self.id, 'linkDesc': linkType, 
+        postdic = urllib.urlencode({'os_username': self.Jira.username,
+                                    'os_password': self.Jira.password,
+                                    'id': self.id, 'linkDesc': linkType,
                                     'linkKey': linkTo})
         urllib2.urlopen(postURL,postdic)
 
@@ -541,7 +541,7 @@ class JiraIssue(JiraObject):
         if len(ps) > 1:
             raise Exception("Multiple 'parent' nodes found for %s" % (self.key))
         return ps[0].childNodes[0].data
-   
+
     def getChildren(self):
         """Return a list of the keys of the child sub-task tickets if any. Returns
         empty list if this has no sub-tasks."""
@@ -559,7 +559,7 @@ class JiraIssue(JiraObject):
                 if cn.nodeName == "subtask":
                     subtasks.append(cn.childNodes[0].data)
         return subtasks
-    
+
     def copyAttachmentsTo(self, destination):
         """Copy attachments from the ticket to the destination dir"""
         if not os.path.isdir(destination):
@@ -569,7 +569,7 @@ class JiraIssue(JiraObject):
         attachments = self.jira.getAttachmentsFromIssue(self.auth,self.key)
 
         # Build authentication string
-        auth = "os_username=%s&os_password=%s" % (self.Jira.username, 
+        auth = "os_username=%s&os_password=%s" % (self.Jira.username,
                                                   self.Jira.password)
 
         # Grab each attachment
@@ -585,7 +585,11 @@ class JiraIssue(JiraObject):
     def getReporter(self):
         return self.reporter
 
-    def resolve(self, resolution, assignee):
+    def accept(self):
+        self.Jira.jira.progressWorkflowAction(self.Jira.auth, self.key, '731',
+                                              [{'id': 'priority', 'values': [self.getPriority()]}])
+
+    def resolve(self, resolution):
         """Resolve the issue with the specified resolution"""
 
         rid = None
@@ -596,15 +600,29 @@ class JiraIssue(JiraObject):
         if not rid:
             raise Exception("Unknown resolution %s" % (resolution))
 
-        self.Jira.jira.progressWorkflowAction(self.Jira.auth, self.key, '5',
-                                              [{'id' : 'assignee', 'values': [assignee]},{'id': 'resolution',
-                                                'values': [str(rid)]}])        
+        status = self.getStatus()
+        if status == "New":
+            self.acceptWorkflow()
+            self.resolveWorkflow('721', rid)
+        elif status == "Reopened" or status == "In Progress":
+            self.resolveWorkflow('5', rid)
+        elif status == "Resolved":
+            raise Exception("Issue %s already resolved." % self.key)
+        raise Exception("Cannot resolve issue %s. Wrong status: %s" % (self.key, status))
+
+    def acceptWorkflow(self):
+        self.Jira.jira.progressWorkflowAction(self.Jira.auth, self.key, '731',
+                                              [{'id': 'priority', 'values': [self.getPriority()]}])        
+
+    def resolveWorkflow(self, action, rid):
+        self.Jira.jira.progressWorkflowAction(self.Jira.auth, self.key, action,
+                                              [{'id': 'resolution', 'values': [str(rid)]}])
 
 class JiraGroup(JiraObject):
 
     def __init__(self, remoteGroup, groupName):
-        JiraObject.__init__(self)   
-        
+        JiraObject.__init__(self)
+
         self.RemoteGroup = remoteGroup
         self.groupName = groupName
 
@@ -619,14 +637,14 @@ class JiraGroup(JiraObject):
         for user in users:
             retusers.append(JiraUser(user))
         return retusers
-        
+
 class JiraUser(JiraObject):
 
     def __init__(self, RemoteUser):
         JiraObject.__init__(self)
-        
+
         self.RemoteUser = RemoteUser
-        
+
         # Parse the fields in the Remoteuser
         for k,v in RemoteUser.__dict__.items():
             self.__dict__[k] = v
@@ -635,13 +653,13 @@ class JiraFilter(JiraObject):
 
     def __init__(self, RemoteFilter):
         JiraObject.__init__(self)
-        
+
         self.RemoteFilter = RemoteFilter
-        
+
         # Parse the fields in the Remoteuser
         for k,v in RemoteFilter.__dict__.items():
             self.__dict__[k] = v
-    
+
     def getIssues(self):
         """Return the issues seen using this filter"""
         issues = self.jira.getIssuesFromFilter(self.auth, self.id)
@@ -649,9 +667,7 @@ class JiraFilter(JiraObject):
 
     def getName(self):
         return self.name
-    
+
     def getUrl(self):
         url = "%s/secure/IssueNavigator.jspa?mode=hide&requestId=%s" % (self.Jira.url,self.id)
         return url
-        
-    
