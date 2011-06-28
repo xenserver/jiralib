@@ -13,6 +13,7 @@ A Python library for SOAP interaction with
 ## Usage
 
 Common usage pattern includes:
+
 1. creating a `Jira` object;
 2. fetching an issue with it;
 3. manipulating the issue through available methods.
