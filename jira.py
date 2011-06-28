@@ -608,7 +608,8 @@ class JiraIssue(JiraObject):
             self.resolveWorkflow('5', rid)
         elif status == "Resolved":
             raise Exception("Issue %s already resolved." % self.key)
-        raise Exception("Cannot resolve issue %s. Wrong status: %s" % (self.key, status))
+        else:
+            raise Exception("Cannot resolve issue %s. Wrong status: %s" % (self.key, status))
 
     def acceptWorkflow(self):
         self.Jira.jira.progressWorkflowAction(self.Jira.auth, self.key, '731',
