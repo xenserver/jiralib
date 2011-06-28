@@ -1,4 +1,4 @@
-# Pull Request Manager
+# JIRALIB
 
 ## Original authors
 
@@ -23,6 +23,9 @@ For example:
     j = jira.Jira("http://my-jira-url/", "my-username", "my-password")
     i = j.getIssue("CA-5555")
     i.addComment("This is a test comment.")
+
+The library is actively used by the
+[pull-request-manager](https://github.com/xen-org/pull-request-manager).
 
 ## Feedback and Contributions
 
