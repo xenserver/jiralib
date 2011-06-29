@@ -604,6 +604,8 @@ class JiraIssue(JiraObject):
         if status == "New":
             self.acceptWorkflow()
             self.resolveWorkflow('721', rid)
+        elif status == "Open":
+            self.resolveWorkflow('721', rid)
         elif status == "Reopened" or status == "In Progress":
             self.resolveWorkflow('5', rid)
         elif status == "Resolved":
