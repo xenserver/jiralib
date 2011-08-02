@@ -619,7 +619,8 @@ class JiraIssue(JiraObject):
 
     def resolveWorkflow(self, action, rid):
         self.Jira.jira.progressWorkflowAction(self.Jira.auth, self.key, action,
-                                              [{'id': 'resolution', 'values': [str(rid)]}])
+                                              [{'id': 'assignee', 'values': [self.getAssignee()]},
+                                               {'id': 'resolution', 'values': [str(rid)]}])
 
 class JiraGroup(JiraObject):
 
