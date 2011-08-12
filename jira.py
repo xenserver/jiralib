@@ -618,9 +618,11 @@ class JiraIssue(JiraObject):
                                               [{'id': 'priority', 'values': [self.getPriority()]}])        
 
     def resolveWorkflow(self, action, rid):
+        fixVersionIds = [fixVersion['id'] for fixVersion in self.fixVersions]
         self.Jira.jira.progressWorkflowAction(self.Jira.auth, self.key, action,
                                               [{'id': 'assignee', 'values': [self.getAssignee()]},
-                                               {'id': 'resolution', 'values': [str(rid)]}])
+                                               {'id': 'resolution', 'values': [str(rid)]},
+                                               {'id': 'fixVersions', 'values': fixVersionIds}])
 
 class JiraGroup(JiraObject):
 
