@@ -1,5 +1,7 @@
 # JIRALIB
 
+This library is DEPRECATED, please switch to [jira-python package (REST)](https://pypi.python.org/pypi/jira-python/)
+
 ## Original authors
 
 * Alex Brett <alex@xensource.com>
